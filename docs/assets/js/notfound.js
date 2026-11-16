@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',()=>{document.getElementById('page-root').innerHTML='<div style="padding:60px 0;text-align:center"><a class="btn btn-primary" href="./">العودة إلى الرئيسية</a></div>';});

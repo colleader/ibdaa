@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>لوحة التحكم | منصة إبداع الوزية</title>
+  <meta name="theme-color" content="#141B4D">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <script src="assets/js/supabase.js" defer></script>
+  <script src="config.js" defer></script>
+  <script src="assets/js/data.js" defer></script>
+  <script src="assets/js/demo-data.js" defer></script>
+  <script src="assets/js/admin-data.js" defer></script>
+  <script src="assets/js/admin.js" defer></script>
+</head>
+<body class="admin">
+  <div class="admin-shell" id="shell" hidden>
+    <aside class="side" id="side">
+      <a class="side-brand" href="./" target="_blank" rel="noopener">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"><rect x="20" y="20" width="60" height="60" rx="3"/><rect x="20" y="20" width="60" height="60" rx="3" transform="rotate(45 50 50)"/></g><circle cx="50" cy="50" r="11" fill="currentColor"/></svg>
+        <span><b>إبداع الوزية</b><small>لوحة التحكم</small></span>
+      </a>
+      <nav id="side-nav" aria-label="أقسام لوحة التحكم"></nav>
+      <div class="side-foot">
+        <div class="who"><small>مرحباً</small><b id="who-name"></b></div>
+        <button class="btn btn-light btn-sm" id="logout"><svg class="icon"><use href="assets/icons.svg#i-log-out"></use></svg> خروج</button>
+      </div>
+    </aside>
+    <div class="admin-main">
+      <header class="admin-top">
+        <button class="icon-btn side-toggle" id="side-toggle" aria-label="القائمة"><svg class="icon"><use href="assets/icons.svg#i-menu"></use></svg></button>
+        <h1 id="view-title">نظرة عامة</h1>
+        <div class="top-tools">
+          <button class="icon-btn" id="theme-btn" aria-label="تبديل الوضع الليلي"><svg class="icon"><use href="assets/icons.svg#i-moon"></use></svg></button>
+          <a class="btn btn-ghost btn-sm" href="./" target="_blank" rel="noopener"><svg class="icon"><use href="assets/icons.svg#i-external-link"></use></svg> عرض الموقع</a>
+        </div>
+      </header>
+      <main class="admin-content" id="view"></main>
+    </div>
+  </div>
+</body>
+</html>
