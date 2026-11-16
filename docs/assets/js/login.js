@@ -12,12 +12,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!sb) { show('لم يتم ربط المنصة بقاعدة البيانات بعد. أضيفي بيانات Supabase في ملف config.js.'); form.querySelector('[type=submit]').disabled = true; return; }
 
   // رابط استعادة كلمة المرور من البريد
-  let recovering = /type=recovery/.test(location.hash);
+  const initialHash = window.IBDAA_INITIAL_HASH || location.hash;
+  const invited = /type=invite/.test(initialHash);
+  let recovering = invited || /type=recovery/.test(initialHash);
+  if (/error_code=otp_expired|error=access_denied/.test(initialHash)) show('انتهت صلاحية الرابط. اكتبي بريدك واضغطي «نسيتِ كلمة المرور؟» ليصلك رابط جديد.');
   sb.auth.onAuthStateChange((event) => {
-    if (event === 'PASSWORD_RECOVERY') { recovering = true; showReset(); }
+    if (event === 'PASSWORD_RECOVERY' || (invited && event === 'SIGNED_IN')) { recovering = true; showReset(); }
   });
   function showReset() {
     form.hidden = true; document.getElementById('forgot').hidden = true; resetForm.hidden = false;
+    if (invited) resetForm.querySelector('p').textContent = 'مرحباً بكِ في لوحة تحكم إبداع الوزية. اختاري كلمة مرور لحسابك.';
     resetForm.elements.pw1.focus();
   }
   if (recovering) showReset();

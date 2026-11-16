@@ -17,7 +17,7 @@ jobs:
           URL=$(grep -oP "SUPABASE_URL:\s*'\K[^']+" docs/config.js)
           KEY=$(grep -oP "SUPABASE_ANON_KEY:\s*'\K[^']+" docs/config.js)
           if [[ "$URL" == YOUR* ]]; then echo "config.js غير معدّ بعد"; exit 0; fi
-          curl -fsS "$URL/rest/v1/settings?select=key&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY"
+          curl -fsS "$URL/rest/v1/settings?select=key&limit=1" -H "apikey: $KEY"
       - name: Keep this schedule enabled (GitHub pauses idle schedules after 60 days)
         env:
           GH_TOKEN: ${{ github.token }}

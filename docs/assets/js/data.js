@@ -3,8 +3,9 @@
   'use strict';
   const cfg = window.IBDAA_CONFIG || {};
   const configured = cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && !/YOUR|ضعي/.test(cfg.SUPABASE_URL + cfg.SUPABASE_ANON_KEY);
+  window.IBDAA_INITIAL_HASH = location.hash; // يُقرأ قبل أن تستهلكه مكتبة الدخول (روابط الدعوة واستعادة كلمة المرور)
   const sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ibdaa-auth' },
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ibdaa-auth', flowType: 'implicit', detectSessionInUrl: true },
   }) : null;
 
   const TYPES = ['competition', 'achievement', 'participation', 'event', 'news', 'gallery', 'honor'];
