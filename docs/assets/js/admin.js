@@ -94,11 +94,17 @@
 
   // ---------- التهيئة ----------
   let overview = null;
+  let ACCESS = { role: 'owner', perms: {} };
+  const isOwner = () => ACCESS.role === 'owner';
+  const can = (p) => isOwner() || !!ACCESS.perms[p];
+  const PERM_LABELS = { add: 'إضافة محتوى جديد', edit: 'تعديل المحتوى وإخفاؤه وتمييزه', delete: 'حذف المحتوى', messages: 'قراءة رسائل التواصل والرد عليها' };
+
   async function boot() {
     const who = await A().currentAdmin();
     if (who.error) { location.replace('login.html' + (who.error === 'not_admin' ? '?denied=1' : '')); return; }
-    $('#who-name').textContent = 'نورة المصلح';
-    window.IbdaaData.loadSettings().then((s) => { $('#who-name').textContent = s.activity_lead || 'المسؤولة'; }).catch(() => {});
+    ACCESS = who.access;
+    $('#who-name').textContent = ACCESS.name || (isOwner() ? 'المسؤولة' : 'معلمة');
+    if (!ACCESS.name && isOwner()) window.IbdaaData.loadSettings().then((s) => { $('#who-name').textContent = s.activity_lead || 'المسؤولة'; }).catch(() => {});
     $('#shell').hidden = false;
     $('#logout').onclick = async () => { await api('/logout', { method: 'POST' }).catch(() => {}); location.replace('login.html'); };
     $('#theme-btn').onclick = () => {
@@ -124,26 +130,29 @@
       <a href="#overview">${icon('layout-dashboard')} نظرة عامة</a>
       <div class="grp">المحتوى</div>
       ${Object.entries(T).map(([k, v]) => `<a href="#type/${k}">${icon(v.icon)} ${v.label}<span class="cnt">${cnt(k)}</span></a>`).join('')}
-      <div class="grp">التواصل والإعداد</div>
-      <a href="#messages">${icon('inbox')} الرسائل والاستفسارات<span class="cnt ${overview.unread ? 'hot' : ''}">${overview.unread}</span></a>
-      <a href="#settings">${icon('settings')} الإعدادات</a>`;
+      <div class="grp">${isOwner() ? 'التواصل والإعداد' : 'حسابي'}</div>
+      ${can('messages') ? `<a href="#messages">${icon('inbox')} الرسائل والاستفسارات<span class="cnt ${overview.unread ? 'hot' : ''}">${overview.unread}</span></a>` : ''}
+      ${isOwner() ? `<a href="#team">${icon('users')} المعلمات والصلاحيات</a>` : ''}
+      <a href="#settings">${icon(isOwner() ? 'settings' : 'key-round')} ${isOwner() ? 'الإعدادات' : 'كلمة المرور'}</a>`;
     markNav();
   }
   function markNav() {
     const h = location.hash || '#overview';
-    const key = h.startsWith('#type/') || ['#messages', '#settings'].includes(h) ? h : '#overview';
+    const key = h.startsWith('#type/') || ['#messages', '#settings', '#team'].includes(h) ? h : '#overview';
     $$('#side-nav a').forEach((a) => { if (a.getAttribute('href') === key) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   }
 
   function route() {
     closeDrawer(true);
+    $('#side').classList.remove('open'); $('.scrim')?.remove();
     $('#view').onclick = null;
     const h = (location.hash || '#overview').slice(1);
     markNav();
     window.scrollTo(0, 0);
     const [view, arg] = h.split('/');
     if (view === 'type' && T[arg]) return listView(arg);
-    if (view === 'messages') return messagesView();
+    if (view === 'messages' && can('messages')) return messagesView();
+    if (view === 'team' && isOwner()) return teamView();
     if (view === 'settings') return settingsView();
     return overviewView();
   }
@@ -158,10 +167,10 @@
     const o = overview;
     const s = o.stats;
     v.innerHTML = `
-      ${o.demo_count ? `<div class="notice">${icon('circle-alert')}<div><b>تحتوي المنصة على ${o.demo_count} عنصراً تجريبياً</b>
+      ${o.demo_count && isOwner() ? `<div class="notice">${icon('circle-alert')}<div><b>تحتوي المنصة على ${o.demo_count} عنصراً تجريبياً</b>
         <p>هذه البيانات للتوضيح فقط وتظهر في الموقع بعلامة «تجريبي». احذفيها قبل نشر المنصة للطالبات وأولياء الأمور.</p>
         <button class="btn btn-sm btn-danger" id="del-demo">${icon('trash-2')} حذف جميع البيانات التجريبية</button></div></div>` : ''}
-      ${!o.recent.length ? `<div class="notice" style="background:var(--purple-soft);color:var(--brand)">${icon('sparkles')}<div><b>المنصة جاهزة وفارغة</b>
+      ${!o.recent.length && isOwner() ? `<div class="notice" style="background:var(--purple-soft);color:var(--brand)">${icon('sparkles')}<div><b>المنصة جاهزة وفارغة</b>
         <p>ابدئي بإضافة أول مسابقة أو إنجاز. وإن أردتِ استعراض شكل المنصة أولاً، أضيفي بيانات تجريبية (تظهر بعلامة «تجريبي» وتُحذف بضغطة).</p>
         <button class="btn btn-sm btn-primary" id="add-demo">${icon('refresh-cw')} إضافة بيانات تجريبية للاستعراض</button></div></div>` : ''}
       <div class="kpis">
@@ -170,12 +179,13 @@
         <div class="kpi"><div class="k-top">المشاركات ${icon('users')}</div><b>${s.participations}</b><small>منشورة</small></div>
         <div class="kpi"><div class="k-top">الفعاليات ${icon('calendar-days')}</div><b>${s.events}</b><small>منشورة</small></div>
         <div class="kpi"><div class="k-top">الطالبات المشاركات ${icon('graduation-cap')}</div><b>${s.students}</b><small>تُحسب تلقائياً من الأسماء</small></div>
-        <div class="kpi"><div class="k-top">رسائل جديدة ${icon('inbox')}</div><b>${o.unread}</b><small><a href="#messages" style="color:var(--brand)">عرض الرسائل</a></small></div>
+        ${can('messages') ? `<div class="kpi"><div class="k-top">رسائل جديدة ${icon('inbox')}</div><b>${o.unread}</b><small><a href="#messages" style="color:var(--brand)">عرض الرسائل</a></small></div>` : ''}
       </div>
-      <div class="box"><h2>${icon('plus')} إضافة سريعة</h2>
-        <div class="quick-add">${Object.entries(T).map(([k, t]) => `<button data-add="${k}">${icon(t.icon)} ${t.one}</button>`).join('')}</div></div>
+      ${!isOwner() ? `<div class="notice" style="background:var(--purple-soft);color:var(--brand)">${icon('key-round')}<div><b>صلاحياتك</b><p>${Object.entries(PERM_LABELS).filter(([k]) => can(k)).map(([, l]) => l).join('، ') || 'لا توجد صلاحيات بعد، تواصلي مع مسؤولة النشاط.'}</p></div></div>` : ''}
+      ${can('add') ? `<div class="box"><h2>${icon('plus')} إضافة سريعة</h2>
+        <div class="quick-add">${Object.entries(T).map(([k, t]) => `<button data-add="${k}">${icon(t.icon)} ${t.one}</button>`).join('')}</div></div>` : ''}
       <div class="box"><h2>${icon('clock')} آخر ما أُضيف</h2><div class="rows">${o.recent.map(rowHTML).join('') || '<p class="hint">لا يوجد محتوى بعد. ابدئي بإضافة مسابقة أو إنجاز.</p>'}</div></div>
-      <div class="box"><h2>${icon('database')} التخزين</h2><p class="hint" style="margin-bottom:8px">${o.media.c} ملف مرفوع، استُخدم ${fmtSize(o.media.bytes)} من 1 جيجابايت المجانية.</p>
+      <div class="box" ${isOwner() ? '' : 'hidden'}><h2>${icon('database')} التخزين</h2><p class="hint" style="margin-bottom:8px">${o.media.c} ملف مرفوع، استُخدم ${fmtSize(o.media.bytes)} من 1 جيجابايت المجانية.</p>
         <div class="progress"><i style="width:${Math.min(100, o.media.bytes / 1073741824 * 100).toFixed(1)}%"></i></div></div>`;
     $$('[data-add]', v).forEach((b) => b.onclick = () => openEditor(b.dataset.add));
     bindRows(v, overviewView);
@@ -209,11 +219,11 @@
           ${it.media_count ? `<span>${icon('image')} ${it.media_count}</span>` : ''}
         </div></div>
       <div class="acts">
-        <button class="act ${it.featured ? 'on' : ''}" data-act="feature" title="${it.featured ? 'إلغاء التمييز' : 'تمييز في الصفحة الرئيسية'}" aria-label="تمييز" aria-pressed="${it.featured}">${icon('star')}</button>
-        <button class="act" data-act="visible" title="${it.visible ? 'إخفاء من الموقع' : 'إظهار في الموقع'}" aria-label="${it.visible ? 'إخفاء' : 'إظهار'}">${icon(it.visible ? 'eye' : 'eye-off')}</button>
+        ${can('edit') ? `<button class="act ${it.featured ? 'on' : ''}" data-act="feature" title="${it.featured ? 'إلغاء التمييز' : 'تمييز في الصفحة الرئيسية'}" aria-label="تمييز" aria-pressed="${it.featured}">${icon('star')}</button>
+        <button class="act" data-act="visible" title="${it.visible ? 'إخفاء من الموقع' : 'إظهار في الموقع'}" aria-label="${it.visible ? 'إخفاء' : 'إظهار'}">${icon(it.visible ? 'eye' : 'eye-off')}</button>` : ''}
         <a class="act" href="${t.page}?id=${it.id}" target="_blank" rel="noopener" title="عرض في الموقع" aria-label="عرض في الموقع" ${it.visible ? '' : 'hidden'}>${icon('external-link')}</a>
-        <button class="act" data-act="edit" title="تعديل" aria-label="تعديل">${icon('pencil')}</button>
-        <button class="act danger" data-act="delete" title="حذف" aria-label="حذف">${icon('trash-2')}</button>
+        ${can('edit') ? `<button class="act" data-act="edit" title="تعديل" aria-label="تعديل">${icon('pencil')}</button>` : ''}
+        ${can('delete') ? `<button class="act danger" data-act="delete" title="حذف" aria-label="حذف">${icon('trash-2')}</button>` : ''}
       </div></div>`;
   }
 
@@ -254,7 +264,7 @@
     v.innerHTML = `<div class="list-tools">
         <label class="search"><span class="sr-only">بحث</span>${icon('search')}<input class="input" type="search" placeholder="بحث في ${t.label}…" id="q"></label>
         <select class="input" id="vis" aria-label="الظهور"><option value="">الكل</option><option value="1">الظاهر فقط</option><option value="0">المخفي فقط</option></select>
-        <button class="btn btn-primary" id="add">${icon('plus')} إضافة ${t.one}</button>
+        <button class="btn btn-primary" id="add" ${can('add') ? '' : 'hidden'}>${icon('plus')} إضافة ${t.one}</button>
       </div><div class="rows" id="rows"><div class="skeleton" style="min-height:80px"></div></div>`;
     let items = [];
     const draw = () => {
@@ -508,12 +518,12 @@
 
   // ---------- الإعدادات ----------
   async function settingsView() {
-    setTitle('الإعدادات');
+    setTitle(isOwner() ? 'الإعدادات' : 'كلمة المرور');
     const v = $('#view');
-    let s;
-    try { s = await api('/settings'); } catch (e) { return toast(e.message, 'err'); }
+    let s = {};
+    if (isOwner()) { try { s = await api('/settings'); } catch (e) { return toast(e.message, 'err'); } }
     const f = (k, l, help = '') => `<label class="field">${l}${help ? `<span class="help">${help}</span>` : ''}<input class="input" name="${k}" value="${esc(s[k])}"></label>`;
-    v.innerHTML = `
+    v.innerHTML = `${isOwner() ? `
       <form class="box" id="set-form"><h2>${icon('school')} بيانات المنصة والمدرسة</h2>
         <div class="fgrid">${f('platform_name', 'اسم المنصة')}${f('school_name', 'اسم المدرسة')}${f('activity_lead', 'مسؤولة النشاط الطلابي')}${f('principal', 'مديرة المدرسة')}
           <label class="field full">العبارة الترحيبية<input class="input" name="tagline" value="${esc(s.tagline)}"></label>
@@ -528,7 +538,7 @@
           <label class="field">العدد اليدوي<input class="input" type="number" min="0" name="students_count" value="${esc(s.students_count)}"></label></div>
         <p class="hint" style="margin-top:10px">بقية الإحصائيات (المسابقات، الإنجازات، المشاركات، الفعاليات) تُحدَّث تلقائياً عند النشر أو الإخفاء أو الحذف.</p>
         <button class="btn btn-primary">${icon('check')} حفظ الإعدادات</button>
-      </form>
+      </form>` : ''}
       <form class="box" id="pw-form" autocomplete="off"><h2>${icon('key-round')} تغيير كلمة المرور</h2>
         <div class="fgrid">
           <label class="field">كلمة المرور الحالية<input class="input" type="password" name="current" autocomplete="current-password" required dir="ltr"></label><span></span>
@@ -537,12 +547,12 @@
         </div>
         <button class="btn btn-primary" style="margin-top:14px">${icon('lock')} تغيير كلمة المرور</button>
       </form>
-      <div class="box"><h2>${icon('database')} البيانات التجريبية</h2>
+      ${isOwner() ? `<div class="box"><h2>${icon('database')} البيانات التجريبية</h2>
         <p class="hint">العناصر التجريبية تحمل علامة «تجريبي» في الموقع ولا تمثل إنجازات حقيقية. يمكنك حذفها كلها بضغطة واحدة، أو إعادتها لاستعراض شكل المنصة.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-danger" id="demo-del">${icon('trash-2')} حذف جميع البيانات التجريبية</button>
-          <button class="btn btn-ghost" id="demo-add">${icon('refresh-cw')} إعادة البيانات التجريبية</button></div></div>`;
-    $('#set-form').onsubmit = async (e) => {
+          <button class="btn btn-ghost" id="demo-add">${icon('refresh-cw')} إعادة البيانات التجريبية</button></div></div>` : ''}`;
+    if ($('#set-form')) $('#set-form').onsubmit = async (e) => {
       e.preventDefault();
       try { await api('/settings', json('PUT', Object.fromEntries(new FormData(e.target)))); toast('تم حفظ الإعدادات'); } catch (err) { toast(err.message, 'err'); }
     };
@@ -553,10 +563,103 @@
       if (d.next !== d.confirm) return toast('تأكيد كلمة المرور غير مطابق', 'err');
       try { await api('/password', json('POST', { current: d.current, next: d.next })); e.target.reset(); toast('تم تغيير كلمة المرور'); } catch (err) { toast(err.message, 'err'); }
     };
+    if (!isOwner()) return;
     $('#demo-del').onclick = deleteDemo;
     $('#demo-add').onclick = async () => {
       try { const r = await api('/demo', { method: 'POST' }); toast(r.created ? `أُضيف ${r.created} عنصراً تجريبياً` : 'البيانات التجريبية موجودة مسبقاً'); refreshNav(); } catch (err) { toast(err.message, 'err'); }
     };
+  }
+
+  // ---------- المعلمات والصلاحيات ----------
+  const SITE_ADMIN = () => new URL('login.html', location.href).href;
+  function permBoxes(perms = {}, prefix = '') {
+    return `<div class="perm-grid">${Object.entries(PERM_LABELS).map(([k, l]) =>
+      `<label class="switch"><input type="checkbox" data-perm="${k}" name="${prefix}${k}" ${perms[k] ? 'checked' : ''}> ${l}</label>`).join('')}</div>`;
+  }
+  async function teamView() {
+    setTitle('المعلمات والصلاحيات');
+    const v = $('#view');
+    let items = [];
+    try { items = (await api('/team')).items; } catch (e) { v.innerHTML = ''; return toast(e.message, 'err'); }
+    const me = (ACCESS.email || '').toLowerCase();
+    v.innerHTML = `
+      <form class="box" id="team-add" novalidate><h2>${icon('plus')} إضافة معلمة</h2>
+        <p class="hint">أضيفي بريد المعلمة وحددي ما تستطيع فعله. بعدها تفتح المعلمة صفحة الدخول وتضغط «معلمة جديدة؟ أنشئي حسابك» وتسجّل بنفس البريد.</p>
+        <div class="fgrid">
+          <label class="field">اسم المعلمة<input class="input" name="name" maxlength="120" placeholder="مثال: أ. سارة"></label>
+          <label class="field">البريد الإلكتروني *<input class="input" name="email" type="email" dir="ltr" required></label>
+          <label class="field full">نوع الحساب<select class="input" name="role">
+            <option value="teacher">معلمة بالصلاحيات المحددة أدناه</option>
+            <option value="owner">مسؤولة بكل الصلاحيات (مثل حسابك)</option></select></label>
+          <div class="field full" id="add-perms">الصلاحيات${permBoxes({ add: true, edit: true })}</div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:14px">${icon('plus')} إضافة</button>
+      </form>
+      <div class="box"><h2>${icon('users')} الحسابات (${items.length})</h2>
+        <div class="rows" id="team-list">${items.map((a) => memberHTML(a, a.email === me)).join('')}</div></div>`;
+
+    const addForm = $('#team-add');
+    addForm.elements.role.onchange = () => { $('#add-perms').hidden = addForm.elements.role.value === 'owner'; };
+    addForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const perms = Object.fromEntries($$('#add-perms [data-perm]').map((c) => [c.dataset.perm, c.checked]));
+      const body = { name: addForm.elements.name.value, email: addForm.elements.email.value, role: addForm.elements.role.value, perms };
+      if (!body.email.trim()) { addForm.elements.email.focus(); return toast('اكتبي بريد المعلمة', 'err'); }
+      try {
+        await api('/team', json('POST', body));
+        await teamView();
+        copyInvite(body.email.trim().toLowerCase(), body.name, true);
+      } catch (err) { toast(err.message, 'err'); }
+    };
+
+    $('#team-list').onchange = async (e) => {
+      const card = e.target.closest('[data-email]'); if (!card) return;
+      const email = card.dataset.email;
+      try {
+        if (e.target.matches('[data-perm]')) {
+          const perms = Object.fromEntries($$('[data-perm]', card).map((c) => [c.dataset.perm, c.checked]));
+          await api('/team/' + encodeURIComponent(email), json('PUT', { perms }));
+          toast('حُفظت الصلاحيات');
+        } else if (e.target.matches('[data-role]')) {
+          await api('/team/' + encodeURIComponent(email), json('PUT', { role: e.target.value }));
+          toast('تم تغيير نوع الحساب'); teamView();
+        } else if (e.target.matches('[data-name]')) {
+          await api('/team/' + encodeURIComponent(email), json('PUT', { name: e.target.value }));
+          toast('حُفظ الاسم');
+        }
+      } catch (err) { toast(err.message, 'err'); teamView(); }
+    };
+    $('#team-list').onclick = async (e) => {
+      const card = e.target.closest('[data-email]'); if (!card) return;
+      const email = card.dataset.email;
+      if (e.target.closest('[data-copy]')) return copyInvite(email, $('[data-name]', card)?.value || '');
+      if (e.target.closest('[data-remove]')) {
+        if (!(await confirmBox('إزالة الحساب', `لن يستطيع ${email} الدخول إلى لوحة التحكم بعد الآن. المحتوى الذي أضافه يبقى كما هو.`, 'إزالة'))) return;
+        try { await api('/team/' + encodeURIComponent(email), { method: 'DELETE' }); toast('تمت الإزالة'); teamView(); } catch (err) { toast(err.message, 'err'); }
+      }
+    };
+  }
+  function memberHTML(a, isMe) {
+    const owner = a.role === 'owner';
+    return `<div class="member" data-email="${esc(a.email)}">
+      <div class="member-head">
+        <span class="th">${icon(owner ? 'crown' : 'graduation-cap')}</span>
+        <div class="tt"><input class="input name-input" data-name value="${esc(a.name)}" placeholder="بدون اسم" aria-label="الاسم" maxlength="120">
+          <small dir="ltr">${esc(a.email)}</small></div>
+        ${isMe ? '<span class="badge gold">حسابك</span>' : `<select class="input role-sel" data-role aria-label="نوع الحساب">
+          <option value="teacher" ${owner ? '' : 'selected'}>معلمة</option><option value="owner" ${owner ? 'selected' : ''}>مسؤولة</option></select>`}
+        <span class="acts">
+          ${owner ? '' : `<button class="act" type="button" data-copy title="نسخ رسالة للمعلمة" aria-label="نسخ رسالة للمعلمة">${icon('copy')}</button>`}
+          ${isMe ? '' : `<button class="act danger" type="button" data-remove title="إزالة" aria-label="إزالة">${icon('trash-2')}</button>`}
+        </span>
+      </div>
+      ${owner ? '<p class="hint" style="margin:8px 0 0">كل الصلاحيات، بما فيها الإعدادات وإدارة المعلمات.</p>' : permBoxes(a.perms)}
+    </div>`;
+  }
+  async function copyInvite(email, name, auto) {
+    const text = `${name ? 'أهلاً ' + name + '،\n' : ''}تمت إضافتك إلى لوحة تحكم منصة إبداع الوزية.\n1) افتحي الرابط: ${SITE_ADMIN()}\n2) اضغطي «معلمة جديدة؟ أنشئي حسابك»\n3) سجّلي ببريدك ${email} واختاري كلمة مرور\n4) افتحي رسالة التأكيد في بريدك واضغطي الرابط`;
+    try { await navigator.clipboard.writeText(text); toast(auto ? 'تمت الإضافة ونُسخت رسالة جاهزة لإرسالها للمعلمة' : 'نُسخت الرسالة، الصقيها في الواتساب'); }
+    catch { if (!auto) prompt('انسخي الرسالة:', text); }
   }
 
   // روابط "إضافة" القادمة من أي مكان

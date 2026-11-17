@@ -46,6 +46,9 @@
     if (list.length) await sb.storage.from(BUCKET).remove(list);
   }
 
+  const PERMS = ['add', 'edit', 'delete', 'messages'];
+  const cleanPerms = (o) => Object.fromEntries(PERMS.map((k) => [k, !!(o && o[k])]));
+
   // ---------- ضغط الصور قبل الرفع لتوفير المساحة ----------
   async function compressImage(file) {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 400 * 1024) return file;
@@ -221,6 +224,34 @@
       if (r.error) throw new Error(/weak|short|characters/i.test(r.error.message) ? 'كلمة المرور ضعيفة، استخدمي حروفاً وأرقاماً' : r.error.message);
       return { ok: true };
     }
+    if (p === '/team' && method === 'GET') {
+      return { items: must(await sb.from('admins').select('*').order('role').order('created_at')) };
+    }
+    if (p === '/team' && method === 'POST') {
+      const email = String(body.email || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('اكتبي بريداً إلكترونياً صحيحاً');
+      const row = { email, name: String(body.name || '').trim().slice(0, 120), role: body.role === 'owner' ? 'owner' : 'teacher', perms: cleanPerms(body.perms) };
+      const r = await sb.from('admins').insert(row);
+      if (r.error) throw new Error(/duplicate|unique/i.test(r.error.message) ? 'هذا البريد مضاف مسبقاً' : D.fail(r.error).message);
+      return { ok: true };
+    }
+    if ((m = p.match(/^\/team\/(.+)$/))) {
+      const email = decodeURIComponent(m[1]).toLowerCase();
+      if (method === 'PUT') {
+        const upd = {};
+        if ('name' in body) upd.name = String(body.name || '').trim().slice(0, 120);
+        if ('role' in body) upd.role = body.role === 'owner' ? 'owner' : 'teacher';
+        if ('perms' in body) upd.perms = cleanPerms(body.perms);
+        const r = await sb.from('admins').update(upd).eq('email', email);
+        if (r.error) throw new Error(/last owner/i.test(r.error.message) ? 'يجب أن تبقى مسؤولة واحدة على الأقل بكل الصلاحيات' : D.fail(r.error).message);
+        return { ok: true };
+      }
+      if (method === 'DELETE') {
+        const r = await sb.from('admins').delete().eq('email', email);
+        if (r.error) throw new Error(/last owner/i.test(r.error.message) ? 'يجب أن تبقى مسؤولة واحدة على الأقل' : D.fail(r.error).message);
+        return { ok: true };
+      }
+    }
     if (p === '/logout') { await sb.auth.signOut(); return { ok: true }; }
     throw new Error('عملية غير معروفة: ' + method + ' ' + p);
   }
@@ -230,11 +261,11 @@
     if (!sb) return { error: 'config' };
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return { error: 'login' };
-    const { data, error } = await sb.rpc('is_admin');
+    const { data, error } = await sb.rpc('my_access');
     if (error) return { error: 'login' };
     if (!data) return { error: 'not_admin', email: session.user.email };
-    return { user: session.user };
+    return { user: session.user, access: { ...data, perms: data.perms || {} } };
   }
 
-  window.IbdaaAdmin = { adminApi, uploadMedia, currentAdmin, seedDemo, MAX_BYTES };
+  window.IbdaaAdmin = { adminApi, uploadMedia, currentAdmin, seedDemo, MAX_BYTES, PERMS };
 })();

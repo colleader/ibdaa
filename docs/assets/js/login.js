@@ -71,6 +71,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     show(error ? 'تعذّر الإرسال، حاولي بعد قليل.' : 'أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك.');
   });
 
+  // ---------- إنشاء حساب معلمة ----------
+  const signupForm = document.getElementById('signup-form');
+  const toggle = document.getElementById('signup-toggle');
+  toggle.addEventListener('click', () => {
+    const open = signupForm.hidden;
+    signupForm.hidden = !open; form.hidden = open;
+    document.getElementById('forgot').hidden = open;
+    toggle.textContent = open ? 'لديكِ حساب؟ سجّلي الدخول' : 'معلمة جديدة؟ أنشئي حسابك';
+    (open ? signupForm.elements.email : form.elements.email).focus();
+  });
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const e3 = document.getElementById('err3');
+    e3.style.color = ''; e3.textContent = '';
+    const email = signupForm.elements.email.value.trim().toLowerCase();
+    const a = signupForm.elements.pw1.value, b = signupForm.elements.pw2.value;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { e3.textContent = 'اكتبي بريداً إلكترونياً صحيحاً.'; return; }
+    if (a.length < 8) { e3.textContent = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.'; return; }
+    if (a !== b) { e3.textContent = 'التأكيد غير مطابق.'; return; }
+    const btn = signupForm.querySelector('[type=submit]');
+    btn.disabled = true;
+    const { data: ok } = await sb.rpc('is_invited', { e: email });
+    if (!ok) { btn.disabled = false; e3.textContent = 'هذا البريد غير مضاف بعد. اطلبي من مسؤولة النشاط إضافتك من «المعلمات والصلاحيات».'; return; }
+    const { data, error } = await sb.auth.signUp({ email, password: a, options: { emailRedirectTo: new URL('login.html', location.href).href } });
+    btn.disabled = false;
+    if (error) {
+      e3.textContent = /registered|exists/i.test(error.message) ? 'هذا البريد له حساب مسبقاً. سجّلي الدخول، أو استخدمي «نسيتِ كلمة المرور؟».'
+        : /rate|many/i.test(error.message) ? 'محاولات كثيرة، انتظري ساعة تقريباً ثم حاولي مجدداً.'
+        : /weak|password/i.test(error.message) ? 'كلمة المرور ضعيفة، استخدمي حروفاً وأرقاماً.' : 'تعذّر إنشاء الحساب: ' + error.message;
+      return;
+    }
+    if (data.session) { location.replace('admin.html'); return; }
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      e3.textContent = 'هذا البريد له حساب مسبقاً. سجّلي الدخول، أو استخدمي «نسيتِ كلمة المرور؟».'; return;
+    }
+    signupForm.reset();
+    e3.style.color = 'var(--ok)';
+    e3.textContent = 'تم إنشاء الحساب. أرسلنا رسالة تأكيد إلى بريدك، افتحيها واضغطي الرابط ثم تدخلين مباشرة.';
+  });
+
   resetForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const e2 = document.getElementById('err2');

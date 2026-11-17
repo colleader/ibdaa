@@ -37,6 +37,15 @@
       <p class="form-error" role="alert" id="err2"></p>
       <button class="btn btn-gold" type="submit" style="width:100%">حفظ كلمة المرور</button>
     </form>
+    <form id="signup-form" hidden novalidate>
+      <p style="color:var(--ink-2)">إذا أضافتكِ مسؤولة النشاط، سجّلي ببريدك نفسه واختاري كلمة مرور.</p>
+      <label class="field">البريد الإلكتروني<input class="input" name="email" type="email" autocomplete="username" required dir="ltr"></label>
+      <label class="field">كلمة المرور<input class="input" name="pw1" type="password" autocomplete="new-password" minlength="8" required dir="ltr"></label>
+      <label class="field">تأكيد كلمة المرور<input class="input" name="pw2" type="password" autocomplete="new-password" required dir="ltr"></label>
+      <p class="form-error" role="alert" id="err3"></p>
+      <button class="btn btn-gold" type="submit" style="width:100%">إنشاء الحساب</button>
+    </form>
+    <button type="button" class="back-link" id="signup-toggle" style="background:none;border:0;cursor:pointer;color:var(--brand);font-weight:700">معلمة جديدة؟ أنشئي حسابك</button><br>
     <button type="button" class="back-link" id="forgot" style="background:none;border:0;cursor:pointer">نسيتِ كلمة المرور؟</button><br>
     <a class="back-link" href="./" style="margin-top:6px">العودة إلى المنصة</a>
   </main>

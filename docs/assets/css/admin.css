@@ -174,3 +174,19 @@ body.admin { background: var(--bg); }
 .confirm-box h3 { font-size: 21px; margin-bottom: 8px; }
 .confirm-box p { color: var(--ink-2); margin-bottom: 20px; }
 .confirm-box .btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* المعلمات والصلاحيات */
+.member { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.member-head { display: grid; grid-template-columns: 48px 1fr auto auto; gap: 12px; align-items: center; }
+.member .th { width: 48px; height: 48px; border-radius: 12px; background: var(--purple-soft); color: var(--brand); display: grid; place-items: center; }
+.member .th .icon { width: 22px; height: 22px; }
+.member .tt { min-width: 0; display: grid; gap: 2px; }
+.member .tt small { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.member .name-input { border-color: transparent; background: transparent; padding: 4px 8px; font-weight: 700; font-size: 16px; }
+.member .name-input:hover, .member .name-input:focus { border-color: var(--line); background: var(--surface); }
+.member .role-sel { width: auto; padding: 7px 10px; }
+.member .acts { display: flex; gap: 4px; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 18px; margin-top: 12px; }
+.perm-grid .switch { font-weight: 400; font-size: 15px; }
+#add-perms .perm-grid { margin-top: 6px; }
+@media (max-width: 560px) { .member-head { grid-template-columns: 40px 1fr; } .member .th { width: 40px; height: 40px; } .member .role-sel, .member .acts, .member .badge { grid-column: 2; justify-self: start; } }
