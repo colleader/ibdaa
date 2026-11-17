@@ -11,12 +11,15 @@ const cors = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "content-type": "application/json" } });
 const DOMAIN = "students.ibdaa.invalid";
+const firstKey = (multi: string | undefined) => { try { const o = JSON.parse(multi || "{}"); return Object.values(o)[0] as string | undefined; } catch { return undefined; } };
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || firstKey(Deno.env.get("SUPABASE_SECRET_KEYS")) || "";
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || firstKey(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS")) || "";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "طلب غير صالح" }, 405);
   const url = Deno.env.get("SUPABASE_URL")!;
-  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const admin = createClient(url, SERVICE_KEY, { auth: { persistSession: false } });
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return json({ error: "طلب غير صالح" }, 400); }
 
@@ -52,7 +55,7 @@ Deno.serve(async (req) => {
 
   // إجراءات الإدارة: التحقق من صلاحية المتصل
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const caller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const caller = createClient(url, ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false },
   });
   const { data: allowed } = await caller.rpc("can_do", { p: "students" });
