@@ -460,3 +460,24 @@ textarea.input { resize: vertical; min-height: 120px; line-height: 1.7; }
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
 .reveal.in { opacity: 1; transform: none; }
 .band-navy .card h3 { color: var(--ink); }
+
+/* ---------- بوابة الطالبات ---------- */
+.portal-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.qi-big { width: 60px; height: 60px; border-radius: 18px; display: grid; place-items: center; background: var(--navy); color: var(--gold); flex: none; }
+.qi-big svg { width: 30px; height: 30px; }
+.big-ic { width: 54px !important; height: 54px !important; color: var(--gold); display: block; margin: 0 auto; }
+.form-msg { min-height: 1.5em; margin: 10px 0; font-size: 15px; color: var(--danger); }
+.join-list { display: grid; gap: 12px; }
+.join-row { display: grid; grid-template-columns: 84px 1fr auto; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px 10px 10px; }
+.join-row .th { width: 84px; height: 64px; border-radius: 10px; overflow: hidden; background: var(--purple-soft); color: var(--brand); display: grid; place-items: center; }
+.join-row .th img { width: 100%; height: 100%; object-fit: cover; }
+.join-row .th svg { width: 28px; height: 28px; }
+.join-row .tt { min-width: 0; display: grid; gap: 3px; }
+.join-row .tt b { font-family: var(--display); font-size: 18px; }
+.join-row .tt small { color: var(--ink-3); }
+.join-row .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) { .join-row { grid-template-columns: 64px 1fr; } .join-row .th { width: 64px; height: 54px; } .join-row .acts { grid-column: 1 / -1; justify-content: flex-start; } }
+.student-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 12px; background: var(--gold); color: var(--navy); font-weight: 700; font-size: 15px; white-space: nowrap; }
+.student-btn:hover { filter: brightness(1.06); }
+.student-btn .icon { width: 18px; height: 18px; }
+@media (max-width: 1100px) { .student-btn span { display: none; } .student-btn { width: 42px; height: 42px; padding: 0; justify-content: center; } }

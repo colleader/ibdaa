@@ -190,3 +190,22 @@ body.admin { background: var(--bg); }
 .perm-grid .switch { font-weight: 400; font-size: 15px; }
 #add-perms .perm-grid { margin-top: 6px; }
 @media (max-width: 560px) { .member-head { grid-template-columns: 40px 1fr; } .member .th { width: 40px; height: 40px; } .member .role-sel, .member .acts, .member .badge { grid-column: 2; justify-self: start; } }
+
+/* الطالبات */
+.chips a.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chips a.chip[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.row .acts .btn { white-space: nowrap; }
+.st-row .acts { flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.sub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.sub-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; display: flex; flex-direction: column; }
+.sub-media { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 2px; background: var(--surface-2); min-height: 150px; }
+.sub-media a, .sub-media .sub-file { display: block; aspect-ratio: 4/3; overflow: hidden; }
+.sub-media img { width: 100%; height: 100%; object-fit: cover; }
+.sub-file { display: grid !important; place-items: center; align-content: center; gap: 4px; color: var(--brand); font-size: 13px; }
+.sub-file .icon { width: 28px; height: 28px; }
+.sub-body { padding: 14px 16px 16px; display: grid; gap: 8px; }
+.sub-body h3 { font-size: 19px; }
+.sub-body small { color: var(--ink-3); }
+.sub-body p { color: var(--ink-2); font-size: 15px; white-space: pre-line; }
+.sub-body .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+@media (max-width: 640px) { .st-row .acts { grid-column: 1 / -1; } }

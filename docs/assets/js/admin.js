@@ -97,7 +97,7 @@
   let ACCESS = { role: 'owner', perms: {} };
   const isOwner = () => ACCESS.role === 'owner';
   const can = (p) => isOwner() || !!ACCESS.perms[p];
-  const PERM_LABELS = { add: 'إضافة محتوى جديد', edit: 'تعديل المحتوى وإخفاؤه وتمييزه', delete: 'حذف المحتوى', messages: 'قراءة رسائل التواصل والرد عليها' };
+  const PERM_LABELS = { add: 'إضافة محتوى جديد', edit: 'تعديل المحتوى وإخفاؤه وتمييزه', delete: 'حذف المحتوى', messages: 'قراءة رسائل التواصل والرد عليها', students: 'إدارة الطالبات وتسجيلاتهن وأعمالهن' };
 
   async function boot() {
     const who = await A().currentAdmin();
@@ -131,6 +131,7 @@
       <div class="grp">المحتوى</div>
       ${Object.entries(T).map(([k, v]) => `<a href="#type/${k}">${icon(v.icon)} ${v.label}<span class="cnt">${cnt(k)}</span></a>`).join('')}
       <div class="grp">${isOwner() ? 'التواصل والإعداد' : 'حسابي'}</div>
+      ${can('students') ? `<a href="#students">${icon('graduation-cap')} الطالبات وطلباتهن<span class="cnt ${overview.pending_students ? 'hot' : ''}">${overview.pending_students || 0}</span></a>` : ''}
       ${can('messages') ? `<a href="#messages">${icon('inbox')} الرسائل والاستفسارات<span class="cnt ${overview.unread ? 'hot' : ''}">${overview.unread}</span></a>` : ''}
       ${isOwner() ? `<a href="#team">${icon('users')} المعلمات والصلاحيات</a>` : ''}
       <a href="#settings">${icon(isOwner() ? 'settings' : 'key-round')} ${isOwner() ? 'الإعدادات' : 'كلمة المرور'}</a>`;
@@ -138,7 +139,8 @@
   }
   function markNav() {
     const h = location.hash || '#overview';
-    const key = h.startsWith('#type/') || ['#messages', '#settings', '#team'].includes(h) ? h : '#overview';
+    if (h.startsWith('#students')) { $$('#side-nav a').forEach((a) => { if (a.getAttribute('href') === '#students') a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }); return; }
+    const key = h.startsWith('#type/') || ['#messages', '#settings', '#team', '#students'].includes(h) ? h : '#overview';
     $$('#side-nav a').forEach((a) => { if (a.getAttribute('href') === key) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   }
 
@@ -153,6 +155,7 @@
     if (view === 'type' && T[arg]) return listView(arg);
     if (view === 'messages' && can('messages')) return messagesView();
     if (view === 'team' && isOwner()) return teamView();
+    if (view === 'students' && can('students')) return studentsView(arg || 'requests');
     if (view === 'settings') return settingsView();
     return overviewView();
   }
@@ -179,6 +182,7 @@
         <div class="kpi"><div class="k-top">المشاركات ${icon('users')}</div><b>${s.participations}</b><small>منشورة</small></div>
         <div class="kpi"><div class="k-top">الفعاليات ${icon('calendar-days')}</div><b>${s.events}</b><small>منشورة</small></div>
         <div class="kpi"><div class="k-top">الطالبات المشاركات ${icon('graduation-cap')}</div><b>${s.students}</b><small>تُحسب تلقائياً من الأسماء</small></div>
+        ${can('students') ? `<div class="kpi"><div class="k-top">طلبات الطالبات ${icon('graduation-cap')}</div><b>${o.pending_students || 0}</b><small><a href="#students" style="color:var(--brand)">مراجعة الطلبات</a></small></div>` : ''}
         ${can('messages') ? `<div class="kpi"><div class="k-top">رسائل جديدة ${icon('inbox')}</div><b>${o.unread}</b><small><a href="#messages" style="color:var(--brand)">عرض الرسائل</a></small></div>` : ''}
       </div>
       ${!isOwner() ? `<div class="notice" style="background:var(--purple-soft);color:var(--brand)">${icon('key-round')}<div><b>صلاحياتك</b><p>${Object.entries(PERM_LABELS).filter(([k]) => can(k)).map(([, l]) => l).join('، ') || 'لا توجد صلاحيات بعد، تواصلي مع مسؤولة النشاط.'}</p></div></div>` : ''}
@@ -568,6 +572,121 @@
     $('#demo-add').onclick = async () => {
       try { const r = await api('/demo', { method: 'POST' }); toast(r.created ? `أُضيف ${r.created} عنصراً تجريبياً` : 'البيانات التجريبية موجودة مسبقاً'); refreshNav(); } catch (err) { toast(err.message, 'err'); }
     };
+  }
+
+  // ---------- الطالبات ----------
+  const ST_BADGE = { pending: ['بانتظار المراجعة', 'warn'], approved: ['مقبولة', 'ok'], accepted: ['مقبول', 'ok'], rejected: ['مرفوض', 'muted'] };
+  const stb = (s, approvedLabel) => `<span class="badge ${ST_BADGE[s][1]}">${s === 'approved' && approvedLabel ? approvedLabel : ST_BADGE[s][0]}</span>`;
+  async function studentsView(tab) {
+    setTitle('الطالبات وطلباتهن');
+    const v = $('#view');
+    let d;
+    try { d = await api('/students'); } catch (e) { v.innerHTML = ''; return toast(e.message, 'err'); }
+    const pend = (arr) => arr.filter((x) => x.status === 'pending').length;
+    const tabs = [['requests', 'طلبات الحسابات', d.students], ['registrations', 'التسجيل في المسابقات', d.registrations], ['submissions', 'الأعمال المرفوعة', d.submissions]];
+    v.innerHTML = `<div class="notice" style="background:var(--purple-soft);color:var(--brand)">${icon('graduation-cap')}<div><b>رابط بوابة الطالبات</b>
+        <p>أرسليه للطالبات: <span dir="ltr" style="font-weight:700">${esc(new URL('student.html', location.href).href)}</span></p>
+        <button class="btn btn-sm btn-primary" id="copy-portal">${icon('copy')} نسخ الرابط</button></div></div>
+      <div class="chips">${tabs.map(([k, l, arr]) => `<a class="chip" href="#students/${k}" aria-pressed="${k === tab}">${l}${pend(arr) ? ` <span class="badge gold">${pend(arr)}</span>` : ''}</a>`).join('')}</div>
+      <div id="st-body"></div>`;
+    $('#copy-portal').onclick = async () => { try { await navigator.clipboard.writeText(new URL('student.html', location.href).href); toast('نُسخ الرابط'); } catch { /* تجاهل */ } };
+    const body = $('#st-body');
+    const sortP = (arr) => arr.slice().sort((a, b) => (a.status !== 'pending') - (b.status !== 'pending'));
+
+    if (tab === 'requests') {
+      body.innerHTML = d.students.length ? `<div class="rows">${sortP(d.students).map((st) => `<div class="row st-row" data-id="${st.id}">
+          <div class="th">${icon('graduation-cap')}</div>
+          <div class="tt"><b>${esc(st.full_name)}</b><div class="tags">${stb(st.status)}<span>${esc(st.grade)}</span><span dir="ltr">@${esc(st.username)}</span><span>${fmtDate(st.created_at)}</span></div></div>
+          <div class="acts">
+            ${st.status !== 'approved' ? `<button class="btn btn-sm btn-primary" data-st="approved">${icon('check')} قبول</button>` : ''}
+            ${st.status === 'pending' ? `<button class="btn btn-sm btn-ghost" data-st="rejected">رفض</button>` : ''}
+            <button class="act" data-reset title="تعيين كلمة مرور جديدة" aria-label="تعيين كلمة مرور جديدة">${icon('key-round')}</button>
+            <button class="act danger" data-del title="حذف الحساب" aria-label="حذف الحساب">${icon('trash-2')}</button>
+          </div></div>`).join('')}</div>` : `<div class="empty">${icon('graduation-cap')}<h3>لا توجد حسابات طالبات بعد</h3><p>أرسلي رابط البوابة للطالبات ليسجّلن.</p></div>`;
+      body.onclick = async (e) => {
+        const row = e.target.closest('[data-id]'); if (!row) return;
+        const id = row.dataset.id; const name = $('.tt b', row).textContent;
+        try {
+          const b = e.target.closest('[data-st]');
+          if (b) { await api('/students/' + id, json('PATCH', { status: b.dataset.st })); toast(b.dataset.st === 'approved' ? 'تم قبول الحساب' : 'تم الرفض'); }
+          else if (e.target.closest('[data-reset]')) {
+            const pw = prompt(`كلمة مرور جديدة لـ ${name} (8 أحرف على الأقل). أعطيها للطالبة لتدخل بها:`);
+            if (!pw) return;
+            if (pw.length < 8) return toast('كلمة المرور يجب أن تكون 8 أحرف على الأقل', 'err');
+            await api('/students/' + id + '/password', json('POST', { password: pw })); toast('تم تعيين كلمة المرور');
+            return;
+          } else if (e.target.closest('[data-del]')) {
+            if (!(await confirmBox('حذف حساب الطالبة', `سيُحذف حساب ${name} وتسجيلاتها وأعمالها غير المنشورة. ما نُشر في الموقع يبقى.`))) return;
+            await api('/students/' + id, { method: 'DELETE' }); toast('حُذف الحساب');
+          } else return;
+          refreshNav(); studentsView('requests');
+        } catch (err) { toast(err.message, 'err'); }
+      };
+    }
+
+    if (tab === 'registrations') {
+      const groups = {};
+      d.registrations.forEach((r) => { (groups[r.item_id] = groups[r.item_id] || { item: r.items, list: [] }).list.push(r); });
+      const keys = Object.keys(groups);
+      body.innerHTML = keys.length ? keys.map((k) => {
+        const g = groups[k];
+        return `<div class="box" data-item="${k}"><h2 style="justify-content:space-between;flex-wrap:wrap">${icon(g.item?.type === 'event' ? 'calendar-days' : 'trophy')} ${esc(g.item?.title || 'عنصر محذوف')}
+            <span style="display:flex;gap:8px;align-items:center"><span class="badge muted">${g.list.length} طالبة</span><button class="btn btn-ghost btn-sm" data-copy>${icon('copy')} نسخ الأسماء</button></span></h2>
+          <div class="rows">${sortP(g.list).map((r) => `<div class="row" data-id="${r.id}"><div class="th">${icon('users')}</div>
+            <div class="tt"><b>${esc(r.students?.full_name || '')}</b><div class="tags">${stb(r.status)}<span>${esc(r.students?.grade || '')}</span><span>${fmtDate(r.created_at)}</span>${r.note ? `<span>«${esc(r.note)}»</span>` : ''}</div></div>
+            <div class="acts">${r.status !== 'accepted' ? `<button class="btn btn-sm btn-primary" data-rs="accepted">${icon('check')} قبول</button>` : ''}${r.status === 'pending' ? `<button class="btn btn-sm btn-ghost" data-rs="rejected">رفض</button>` : ''}
+              <button class="act danger" data-del aria-label="حذف">${icon('trash-2')}</button></div></div>`).join('')}</div></div>`;
+      }).join('') : `<div class="empty">${icon('trophy')}<h3>لا توجد تسجيلات بعد</h3><p>تظهر هنا طلبات الطالبات للمشاركة في المسابقات والفعاليات.</p></div>`;
+      body.onclick = async (e) => {
+        const box = e.target.closest('[data-item]');
+        if (e.target.closest('[data-copy]') && box) {
+          const g = groups[box.dataset.item];
+          const txt = `${g.item?.title || ''}\n` + g.list.filter((r) => r.status !== 'rejected').map((r, i) => `${i + 1}. ${r.students?.full_name || ''} — ${r.students?.grade || ''}`).join('\n');
+          try { await navigator.clipboard.writeText(txt); toast('نُسخت قائمة الأسماء'); } catch { prompt('انسخي القائمة:', txt); }
+          return;
+        }
+        const row = e.target.closest('.row[data-id]'); if (!row) return;
+        try {
+          const b = e.target.closest('[data-rs]');
+          if (b) { await api('/registrations/' + row.dataset.id, json('PATCH', { status: b.dataset.rs })); toast(b.dataset.rs === 'accepted' ? 'تم قبول التسجيل' : 'تم الرفض'); }
+          else if (e.target.closest('[data-del]')) { if (!(await confirmBox('حذف التسجيل', 'سيُحذف طلب التسجيل هذا.'))) return; await api('/registrations/' + row.dataset.id, { method: 'DELETE' }); toast('حُذف'); }
+          else return;
+          refreshNav(); studentsView('registrations');
+        } catch (err) { toast(err.message, 'err'); }
+      };
+    }
+
+    if (tab === 'submissions') {
+      body.innerHTML = d.submissions.length ? `<div class="sub-grid">${sortP(d.submissions).map((sb_) => {
+        const files = sb_.submission_files || [];
+        return `<article class="sub-card" data-id="${sb_.id}">
+          <div class="sub-media">${files.slice(0, 4).map((f) => f.kind === 'image' ? `<a href="${esc(f.url)}" target="_blank" rel="noopener"><img src="${esc(f.url)}" alt="" loading="lazy"></a>` : `<a href="${esc(f.url)}" target="_blank" rel="noopener" class="sub-file">${icon(f.kind === 'video' ? 'video' : 'file-text')}<span>${f.kind === 'video' ? 'فيديو' : 'PDF'}</span></a>`).join('') || `<span class="sub-file">${icon('image')}<span>بدون ملفات</span></span>`}</div>
+          <div class="sub-body"><div class="tags" style="display:flex;gap:6px;flex-wrap:wrap">${stb(sb_.status, 'منشور')}<span class="badge muted">${sb_.kind === 'achievement' ? 'إنجاز' : 'عمل إبداعي'}</span>${sb_.category ? `<span class="badge">${esc(sb_.category)}</span>` : ''}</div>
+            <h3>${esc(sb_.title)}</h3><small>${esc(sb_.students?.full_name || '')} — ${esc(sb_.students?.grade || '')} — ${fmtDate(sb_.created_at)}</small>
+            ${sb_.description ? `<p>${esc(sb_.description)}</p>` : ''}${sb_.admin_note ? `<p class="hint">ملاحظتك: ${esc(sb_.admin_note)}</p>` : ''}
+            <div class="acts">${sb_.status === 'pending' ? `<button class="btn btn-sm btn-primary" data-pub>${icon('check')} ${sb_.kind === 'achievement' ? 'نشر في الإنجازات' : 'نشر في المعرض'}</button><button class="btn btn-sm btn-ghost" data-rej>رفض</button>` : ''}
+              ${sb_.item_id ? `<a class="btn btn-sm btn-ghost" href="${sb_.kind === 'achievement' ? 'achievements' : 'gallery'}.html?id=${sb_.item_id}" target="_blank" rel="noopener">${icon('external-link')} عرض</a>` : ''}
+              <button class="act danger" data-del aria-label="حذف">${icon('trash-2')}</button></div></div></article>`;
+      }).join('')}</div>` : `<div class="empty">${icon('upload')}<h3>لا توجد أعمال مرفوعة بعد</h3><p>تظهر هنا أعمال الطالبات وإنجازاتهن لتراجعيها وتنشريها بضغطة.</p></div>`;
+      body.onclick = async (e) => {
+        const card = e.target.closest('[data-id]'); if (!card) return;
+        const id = card.dataset.id;
+        try {
+          if (e.target.closest('[data-pub]')) {
+            if (!(await confirmBox('نشر العمل', 'سيظهر العمل في الموقع باسم الطالبة. يمكنك تعديله لاحقاً من قسمه.', 'نشر', false))) return;
+            const r = await api(`/submissions/${id}/publish`, json('POST', {})); toast(r.type === 'achievement' ? 'نُشر في الإنجازات' : 'نُشر في معرض الإبداع');
+          } else if (e.target.closest('[data-rej]')) {
+            const note = prompt('سبب الرفض أو ملاحظة للطالبة (اختياري):') ?? null;
+            if (note === null) return;
+            await api('/submissions/' + id, json('PATCH', { status: 'rejected', admin_note: note })); toast('تم الرفض');
+          } else if (e.target.closest('[data-del]')) {
+            if (!(await confirmBox('حذف العمل المرفوع', 'سيُحذف الطلب وملفاته (ما نُشر في الموقع يبقى).'))) return;
+            await api('/submissions/' + id, { method: 'DELETE' }); toast('حُذف');
+          } else return;
+          refreshNav(); studentsView('submissions');
+        } catch (err) { toast(err.message, 'err'); }
+      };
+    }
   }
 
   // ---------- المعلمات والصلاحيات ----------

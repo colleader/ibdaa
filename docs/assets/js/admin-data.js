@@ -28,6 +28,12 @@
     return out;
   }
 
+  async function pendingCount() {
+    const q = (t) => sb.from(t).select('id', { count: 'exact', head: true }).eq('status', 'pending');
+    const r = await Promise.all([q('students'), q('registrations'), q('submissions')]);
+    return r.reduce((n, x) => n + (x.count || 0), 0);
+  }
+
   async function allItems() {
     const rows = must(await sb.from('items').select('*, media(*)'));
     return rows.map(D.shape);
@@ -46,7 +52,7 @@
     if (list.length) await sb.storage.from(BUCKET).remove(list);
   }
 
-  const PERMS = ['add', 'edit', 'delete', 'messages'];
+  const PERMS = ['add', 'edit', 'delete', 'messages', 'students'];
   const cleanPerms = (o) => Object.fromEntries(PERMS.map((k) => [k, !!(o && o[k])]));
 
   // ---------- ضغط الصور قبل الرفع لتوفير المساحة ----------
@@ -116,6 +122,16 @@
     return DEMO.length;
   }
 
+  async function fn(body) {
+    const { data, error } = await sb.functions.invoke('students', { body });
+    if (error || data?.error) {
+      let t = data?.error;
+      if (!t && error?.context?.json) { try { t = (await error.context.json()).error; } catch { /* تجاهل */ } }
+      throw new Error(t || 'تعذّر تنفيذ العملية');
+    }
+    return data;
+  }
+
   // ---------- واجهة متوافقة مع لوحة التحكم ----------
   async function adminApi(path, opts = {}) {
     const method = (opts.method || 'GET').toUpperCase();
@@ -140,6 +156,7 @@
         stats: D.computeStats(items.filter((i) => i.visible), settings),
         by_type: byType,
         unread: unread.count || 0,
+        pending_students: await pendingCount(),
         demo_count: items.filter((i) => i.is_demo).length,
         media: { c: media.filter((x) => x.path).length, bytes: media.reduce((s, x) => s + (x.path ? Number(x.size) || 0 : 0), 0) },
         recent: items.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id).slice(0, 8),
@@ -249,6 +266,45 @@
       if (method === 'DELETE') {
         const r = await sb.from('admins').delete().eq('email', email);
         if (r.error) throw new Error(/last owner/i.test(r.error.message) ? 'يجب أن تبقى مسؤولة واحدة على الأقل' : D.fail(r.error).message);
+        return { ok: true };
+      }
+    }
+    // ---------- الطالبات ----------
+    if (p === '/students' && method === 'GET') {
+      const [st, regs, subs] = await Promise.all([
+        sb.from('students').select('*').order('created_at', { ascending: false }),
+        sb.from('registrations').select('*, students(full_name, username, grade), items(title, type, date)').order('id', { ascending: false }),
+        sb.from('submissions').select('*, students(full_name, username, grade), submission_files(*)').order('id', { ascending: false }),
+      ]);
+      return { students: must(st), registrations: must(regs), submissions: must(subs) };
+    }
+    if ((m = p.match(/^\/students\/([0-9a-f-]+)$/))) {
+      if (method === 'PATCH') { must(await sb.from('students').update({ status: body.status }).eq('id', m[1])); return { ok: true }; }
+      if (method === 'DELETE') return fn({ action: 'delete', id: m[1] });
+    }
+    if ((m = p.match(/^\/students\/([0-9a-f-]+)\/password$/))) return fn({ action: 'reset', id: m[1], password: body.password });
+    if ((m = p.match(/^\/registrations\/(\d+)$/))) {
+      if (method === 'PATCH') must(await sb.from('registrations').update({ status: body.status }).eq('id', +m[1]));
+      if (method === 'DELETE') must(await sb.from('registrations').delete().eq('id', +m[1]));
+      return { ok: true };
+    }
+    if ((m = p.match(/^\/submissions\/(\d+)\/publish$/))) {
+      const sub = must(await sb.from('submissions').select('*, students(full_name, grade), submission_files(*)').eq('id', +m[1]).single());
+      const type = sub.kind === 'achievement' ? 'achievement' : 'gallery';
+      const row = { type, title: sub.title, summary: sub.description.slice(0, 280), body: sub.description, category: sub.category,
+        people: sub.students?.full_name || '', date: D.today(), visible: true, level: type === 'achievement' ? (body.level || '') : '' };
+      const item = must(await sb.from('items').insert(row).select('id').single());
+      const media = (sub.submission_files || []).map((f, i) => ({ item_id: item.id, url: f.url, path: f.path, original: '', mime: f.mime, kind: f.kind, caption: '', size: f.size, sort: i + 1 }));
+      if (media.length) must(await sb.from('media').insert(media));
+      must(await sb.from('submissions').update({ status: 'approved', item_id: item.id }).eq('id', sub.id));
+      return { ok: true, item_id: item.id, type };
+    }
+    if ((m = p.match(/^\/submissions\/(\d+)$/))) {
+      if (method === 'PATCH') { must(await sb.from('submissions').update({ status: body.status, admin_note: String(body.admin_note || '').slice(0, 500) }).eq('id', +m[1])); return { ok: true }; }
+      if (method === 'DELETE') {
+        const sub = must(await sb.from('submissions').select('status, submission_files(path)').eq('id', +m[1]).single());
+        must(await sb.from('submissions').delete().eq('id', +m[1]));
+        if (sub.status !== 'approved') await removeStorage((sub.submission_files || []).map((f) => f.path));
         return { ok: true };
       }
     }

@@ -102,6 +102,7 @@
             <button class="icon-btn" id="bell-btn" aria-label="الإشعارات" aria-expanded="false">${icon('bell')}<span class="dot" hidden></span></button>
             <div class="popover" id="bell-pop"><div class="popover-head"><span>الإعلانات الجديدة</span><a class="link-more" href="news.html">الكل</a></div><ul class="notif-list"><li style="padding:12px;color:var(--ink-3)">جارٍ التحميل…</li></ul></div>
           </div>
+          <a class="student-btn" href="student.html" aria-label="بوابة الطالبات">${icon('graduation-cap')}<span>بوابة الطالبات</span></a>
           <button class="icon-btn theme-toggle" id="theme-btn" aria-label="تبديل الوضع الليلي والنهاري">${icon('moon', 'icon moon')}${icon('sun', 'icon sun')}</button>
           <button class="icon-btn menu-btn" id="menu-btn" aria-label="القائمة" aria-expanded="false" aria-controls="main-nav">${icon('menu')}</button>
         </div>
@@ -186,7 +187,7 @@
           </div>
         </div>
         <div><h4>أقسام المنصة</h4><ul>${NAV.slice(1, 5).map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join('')}</ul></div>
-        <div><h4>روابط</h4><ul>${NAV.slice(5).map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join('')}<li><a href="admin.html">دخول الإدارة</a></li></ul></div>
+        <div><h4>روابط</h4><ul>${NAV.slice(5).map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join('')}<li><a href="student.html">بوابة الطالبات</a></li><li><a href="admin.html">دخول الإدارة</a></li></ul></div>
       </div>
       <div class="container footer-bottom"><span>© ${new Date().getFullYear()} ${esc(s.platform_name)} — ${esc(s.school_name)}</span><span>جميع الحقوق محفوظة</span></div>
     </footer>
@@ -310,6 +311,7 @@
         ${conditions.length ? `<div class="block"><h4>${icon('list-checks')} شروط المشاركة</h4><ul class="conditions">${conditions.map((c) => `<li>${icon('check')}<span>${esc(c)}</span></li>`).join('')}</ul></div>` : ''}
         ${item.winners?.length ? `<div class="block"><h4>${icon('medal')} الفائزات والمراكز</h4><div class="winners">${item.winners.map((w) => `<div class="winner"><span class="medal">${icon('medal')}</span><div><b>${esc(w.name)}</b><br><small style="color:var(--ink-3)">${esc(w.rank)}</small></div></div>`).join('')}</div></div>` : ''}
         ${item.media.length ? `<div class="block"><h4>${icon('image')} الصور والمرفقات (${item.media.length})</h4><div class="thumbs">${item.media.map((m, i) => thumbHTML(m, i)).join('')}</div></div>` : ''}
+        ${['competition', 'event'].includes(item.type) && item.computed_status !== 'closed' ? `<a class="btn btn-gold" href="student.html?join=${item.id}" style="justify-self:start">${icon('graduation-cap')} ${item.type === 'competition' ? 'سجّلي في المسابقة' : 'سجّلي في الفعالية'}</a>` : ''}
         <div class="share-row"><span>مشاركة:</span>
           <button class="btn btn-ghost btn-sm" data-share="native">${icon('share-2')} مشاركة</button>
           <a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(item.title + '\n' + shareUrl(item))}">واتساب</a>
