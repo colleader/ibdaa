@@ -487,3 +487,10 @@ textarea.input { resize: vertical; min-height: 120px; line-height: 1.7; }
   .student-btn span { display: none; }
   .student-btn { width: 42px; height: 42px; padding: 0; justify-content: center; }
 }
+.guide-link { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; text-decoration: none; color: inherit; border: 2px solid var(--gold); padding: 16px 20px; }
+.guide-link:hover { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.guide-link:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.guide-ic { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--gold); color: #141B4D; display: grid; place-items: center; }
+.guide-ic .icon { width: 24px; height: 24px; margin-inline-start: 3px; }
+.guide-link b { display: block; font-size: 19px; }
+.guide-link small { display: block; color: var(--ink-2); font-size: 15px; margin-top: 2px; }

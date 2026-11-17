@@ -37,7 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---------- الدخول وإنشاء الحساب ----------
   function authView() {
-    root.innerHTML = `<div class="contact-grid">
+    root.innerHTML = `<a class="panel guide-link" href="guide/students.html">
+        <span class="guide-ic">${icon('play')}</span>
+        <span><b>أول مرة؟ شاهدي الشرح</b><small>فيديو دقيقة: إنشاء الحساب، التسجيل في المسابقات، ورفع الأعمال</small></span>
+      </a>
+      <div class="contact-grid">
       <form class="panel" id="login" novalidate>
         <h2 style="font-size:26px;margin-bottom:6px">دخول الطالبة</h2>
         <p style="color:var(--ink-2);margin-bottom:18px">ادخلي باسم المستخدم وكلمة المرور.</p>
